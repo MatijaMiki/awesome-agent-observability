@@ -64,6 +64,7 @@ Find what you are evaluating or observing; the entries named are in the sections
 - [Braintrust](https://www.braintrust.dev/docs/instrument) - Hosted eval and tracing platform; see [Autoevals](https://github.com/braintrustdata/autoevals) below for its open-source scorers.
 - [AgentOps](https://github.com/AgentOps-AI/agentops) - Python SDK for session replay, cost tracking, and tracing across CrewAI, OpenAI Agents SDK, LangChain, AG2, and others; the SDK is MIT, the self-hostable app is Elastic License 2.0.
 - [Noveum Trace](https://github.com/Noveum/noveum-trace) - Python SDK whose context managers trace operations, LLM calls, and agent steps and send them over HTTPS to the hosted Noveum platform or a custom endpoint; the SDK is Apache-2.0, the backend is hosted.
+- [Agnost AI](https://docs.agnost.ai/online-evals) - Hosted platform that has an LLM judge each finished agent conversation against plain-English rules, labels user intent, and sends Slack or email alerts that can open a fix pull request; ingests OpenTelemetry, the Python and TypeScript conversation SDKs are MIT, the backend is hosted and closed source.
 
 ## Trace backends
 
