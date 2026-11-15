@@ -4,11 +4,12 @@
 
 Agents fail in ways ordinary services do not: a run is non-deterministic, spans a dozen model and tool calls, and "wrong" is a quality judgement rather than a status code. The projects below cover the resulting stack — OpenTelemetry conventions for GenAI, tracing backends, telemetry from coding agents such as Claude Code and Codex, evaluation frameworks with LLM-as-judge and deterministic scorers, benchmark harnesses that run agents and CLI harnesses in sandboxes and grade them with tests, skill and MCP server testing, guardrails, gateways, and Model Context Protocol tooling.
 
-Entries say what a project does, not what it markets, and carry its license where that is not plainly open source. Projects that were dormant, end-of-life, out of scope, or too young to judge were left out. Most entries were installed or built and run against a mock backend at the 2026-10-04 audit; a few could not be run (for example Kong, SigNoz, and anything needing Docker or a hosted account), so this list does not claim every entry was exercised. Entries added at the 2026-11-15 evals expansion were each run on a Linux box with local models or mocks only, and the commands and output are in [`evidence/`](evidence/). A weekly job re-checks that each repository still exists, is not archived, and has a recent commit.
+Entries say what a project does, not what it markets, and carry its license where that is not plainly open source. Projects that were dormant, end-of-life, out of scope, or too young to judge were left out. Most entries were installed or built and run against a mock backend at the 2026-10-04 audit; a few could not be run (for example Kong, SigNoz, and anything needing Docker or a hosted account), so this list does not claim every entry was exercised. Entries added at the 2026-11-15 evals expansion, and in the follow-up later that day, were each run on a Linux box with local models or mocks only, and the commands and output are in [`evidence/`](evidence/). A weekly job re-checks that each repository still exists, is not archived, and has a recent commit.
 
 ## Contents
 
 - [Where to start](#where-to-start)
+- [Recipes](#recipes)
 - [Standards and instrumentation](#standards-and-instrumentation)
 - [Tracing and observability platforms](#tracing-and-observability-platforms)
 - [Trace backends](#trace-backends)
@@ -26,17 +27,32 @@ Entries say what a project does, not what it markets, and carry its license wher
 
 Find what you are evaluating or observing; the entries named are in the sections below.
 
-| You want to                                                | Start with                                                              |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Trace an LLM or agent app you build                        | OpenLLMetry or OpenInference into Langfuse, Phoenix, or a trace backend |
-| See what a coding agent did and what it cost               | Claude Code monitoring, AI Observer, ccusage                            |
-| Score outputs with an LLM judge                            | DeepEval, Promptfoo, OpenEvals, Inspect                                 |
-| Score outputs deterministically                            | Inspect, Promptfoo, OpenEvals, SWE-bench, Harbor                        |
-| Check an agent's tool-call path                            | AgentEvals, DeepEval                                                    |
-| Compare models or coding-agent harnesses on the same tasks | Harbor, Inspect SWE, coder-eval                                         |
-| Evaluate an Agent Skill                                    | skill-creator, coder-eval                                               |
-| Test an MCP server                                         | MCP Conformance, MCP Inspector, MCPMark; MCP Scanner for security       |
-| Red-team an app or agent                                   | Promptfoo, garak, DeepTeam                                              |
+| You want to                                                | Start with                                                                       |
+| ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Trace an LLM or agent app you build                        | OpenLLMetry or OpenInference into Langfuse, Phoenix, or a trace backend          |
+| See what a coding agent did and what it cost               | Claude Code monitoring, AI Observer, ccusage, ctxlens                            |
+| Score outputs with an LLM judge                            | DeepEval, Promptfoo, OpenEvals, Inspect                                          |
+| Score outputs deterministically                            | Inspect, Promptfoo, OpenEvals, SWE-bench, Harbor                                 |
+| Check an agent's tool-call path                            | AgentEvals, DeepEval                                                             |
+| Compare models or coding-agent harnesses on the same tasks | Harbor, Inspect SWE, coder-eval, τ²-bench                                        |
+| Evaluate an Agent Skill                                    | skill-creator, coder-eval                                                        |
+| Test an MCP server                                         | MCP Conformance, MCP Inspector, MCPMark, MCP-Atlas; MCP Scanner for security     |
+| Red-team an app or agent                                   | Promptfoo, garak, DeepTeam                                                       |
+| Trace token use from any CLI harness                       | LiteLLM into an OpenTelemetry Collector (see Recipes)                            |
+| Score a model's function calls                             | BFCL, AgentEvals, DeepEval                                                       |
+
+
+## Recipes
+
+Short patterns that use tools already on this list. Each was run on a Linux box with local models only; commands and output are in [`evidence/recipes.md`](evidence/recipes.md).
+
+**Trace any CLI harness through a gateway.** Point Claude Code, OpenCode, Pi, or another OpenAI-compatible CLI at a LiteLLM proxy with the `otel` callback writing into an OpenTelemetry Collector. You get per-request input and output token counts, model, latency, and user-agent spans without harness-specific setup. Claude Code's own monitoring can send to the same collector, but on local models it may report a phantom cost and only session-level metrics.
+
+**Run MCP Conformance through a proxy.** Point MCP Conformance at the proxy in front of the server, not only at the server itself, so buffering and protocol bugs show up. For a stdio server, mcp-trace `--stdio` can be the HTTP bridge the suite needs.
+
+**Run a harness eval without Docker.** Harbor and Inspect SWE expect container sandboxes. Inspect can also run a custom subprocess solver in its `local` sandbox and score with exact or hidden tests and `model_graded_qa`.
+
+**Promptfoo Node version.** Promptfoo 0.125 and later require Node 22.22 or newer (`engines.node`). Node 22.20 fails; use a newer Node if `npx promptfoo` errors on startup.
 
 ## Standards and instrumentation
 
@@ -83,6 +99,7 @@ Telemetry, usage, and cost analysis for CLI coding agents such as Claude Code, C
 - [AI Observer](https://github.com/tobilg/ai-observer) - Single-binary OTLP receiver with a DuckDB store and web dashboard for Claude Code, Codex CLI, Gemini CLI, Copilot, and OpenCode telemetry, which can also import past session files and price their token use; MIT.
 - [AgentsView](https://github.com/kenn-io/agentsview) - Local-first session search, analytics, and token-use statistics for the Claude Code, Codex, and other coding-agent session archives on your machine; it analyses the agents you use, not apps you build.
 - [ccusage](https://github.com/ccusage/ccusage) - CLI that reads the local session logs of Claude Code, Codex, OpenCode, and other coding-agent CLIs and reports token use and estimated cost by day, week, month, or session, and for Claude Code by 5-hour billing block; MIT.
+- [ctxlens](https://github.com/AgentPostmortem/Ctxlens) - Parses Claude Code, Codex, and generic OpenAI-chat session transcripts and reports per-turn context composition, a waste ratio from duplicate content, oversized tool results, stale outputs, and oversized tool definitions, and recommendations, with a CI flag that fails when waste exceeds a threshold; MIT.
 - [Verovo](https://github.com/roy-tong/Verovo) - Local CLI, formerly AgentMeasure, whose `check` command reads Codex and Claude Code session logs and reports duplicate records, retry chains, and repeated tool failures, marking what the logs cannot decide as UNPROVABLE; most of its other commands audit AI vendor bills against usage records; MIT.
 
 ## Evaluation and testing
@@ -109,10 +126,12 @@ Telemetry, usage, and cost analysis for CLI coding agents such as Claude Code, C
 Harnesses that run an agent, or a whole CLI coding agent, on tasks in a sandbox and grade the outcome, usually with tests the agent cannot see; use them to compare models, harnesses, and configurations on the same tasks.
 
 - [Harbor](https://github.com/harbor-framework/harbor) - Runs agents, including Claude Code, Codex CLI, Gemini CLI, OpenCode, and Cursor CLI, on containerized tasks and scores each trial with the task's own test script, so harnesses and models can be compared on the same tasks, with Terminal-Bench and other datasets in its registry; Apache-2.0.
+- [τ²-bench](https://github.com/sierra-research/tau2-bench) - Simulates a tool-using customer-service agent and a user, each with their own tools, through tasks in airline, retail, telecom, and other domains, and scores each trial by whether the database ends in the gold state and whether required information was communicated, in text or voice; MIT.
 - [Inspect SWE](https://github.com/meridianlabs-ai/inspect_swe) - Wraps Claude Code, Codex CLI, Gemini CLI, OpenCode, and other CLI coding agents as Inspect agents that run in an Inspect sandbox with their model calls routed through Inspect, so any Inspect model, scorer, and log viewer applies to them; MIT.
 - [coder-eval](https://github.com/UiPath/coder_eval) - Runs Claude Code, Codex, OpenCode, and other CLI coding agents on YAML tasks in a sandbox and grades the workspace and trajectory with deterministic checks such as file contents, commands, and whether a given skill was loaded, or with LLM judges, including A/B runs across agents, models, and skills; Apache-2.0.
 - [SWE-bench](https://github.com/SWE-bench/SWE-bench) - Harness that applies a candidate patch to a real GitHub repository inside a per-issue Docker image and runs the repository's held-out FAIL_TO_PASS and PASS_TO_PASS tests to decide whether the issue is resolved; MIT.
 - [Inspect Evals](https://github.com/UKGovernmentBEIS/inspect_evals) - Ready-made Inspect tasks for published benchmarks, from GSM8K to agentic and cybersecurity suites, run against any Inspect-supported model with one `inspect eval` command; MIT.
+- [BFCL](https://github.com/ShishirPatil/gorilla/tree/main/berkeley-function-call-leaderboard) - Evaluates a model's function calling on single-turn, live, multi-turn, and agentic web-search and memory tasks, checking arguments with AST match and executing calls against tool backends; Apache-2.0, part of the Gorilla repository.
 - [YYLO Benchmark](https://github.com/yylo-dev/yylo-benchmark) - Runs coding prompts and tasks across models and harnesses on fresh checkouts, keeps every output unchanged, and lets you re-evaluate them later with new checks or judges.
 - [AgentDojo](https://github.com/ethz-spylab/agentdojo) - ETH Zurich benchmark and framework for tool-using agents against prompt injection, with task suites and attack and defense pipelines that report utility and attack success.
 - [ClawBench](https://github.com/TIGER-AI-Lab/ClawBench) - Live-web benchmark for evaluating browser and computer-use agents on about 280 everyday tasks, with request interception and recorded execution evidence.
@@ -152,6 +171,7 @@ Tools that check what an MCP server does: protocol conformance, manual calls, an
 - [MCP Inspector](https://github.com/modelcontextprotocol/inspector) - Official UI for calling an MCP server's tools by hand and reading the raw JSON-RPC traffic.
 - [MCPMark](https://github.com/eval-sys/mcpmark) - Benchmark of tasks over real Filesystem, GitHub, Notion, PostgreSQL, and Playwright MCP servers, each run from a fresh copy of its environment and checked by a per-task verification script, with models called through LiteLLM; Apache-2.0.
 - [MCP-Universe](https://github.com/SalesforceAIResearch/MCP-Universe) - Salesforce framework and benchmark that runs agents against real MCP servers for maps, finance, GitHub, browser, and other tasks and grades their outputs with rule-based evaluators; Apache-2.0.
+- [MCP-Atlas](https://github.com/scaleapi/mcp-atlas) - Runs an agent against 36 real MCP servers in a Docker sandbox on 500 public tasks and scores the final answer with an LLM judge on claim coverage, plus a diagnostic taxonomy of tool-call and cognitive failures; MIT.
 
 ## Model Context Protocol
 
