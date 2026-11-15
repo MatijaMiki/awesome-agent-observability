@@ -12,7 +12,7 @@ Proof run: official MCP Conformance `server` suite against the reference everyth
 
 ## Run a harness eval without Docker
 
-Proof run: Inspect AI with a custom subprocess solver (no Docker sandbox) ran the same hidden-test coding task against OpenCode, Pi, and vanilla Claude Code on `qwen2.5:3b-instruct` via LiteLLM, scored with visible+hidden unittests and `model_graded_qa`. Inspect ships a `LocalSandboxEnvironment` (`inspect_ai.util.sandbox.local`). Harbor and Inspect SWE were already documented in #41 as container sandboxes.
+Proof run: Inspect AI with a custom subprocess solver ran the same hidden-test coding task against OpenCode, Pi, and vanilla Claude Code on `qwen2.5:3b-instruct` via LiteLLM, scored with visible+hidden unittests and `model_graded_qa`. That task set **no sandbox**; its solver called Python `subprocess` directly on the host. Inspect also ships a built-in `local` sandbox (`inspect_ai.util.sandbox.local`, the host file system with no isolation). Dogfooding reproduced `sandbox="local"` on inspect_ai 0.3.290 with `sandbox().exec` in the solver and scorer and mockllm, accuracy 1.0. Harbor and Inspect SWE were already documented in #41 as container sandboxes.
 
 ## Promptfoo Node version
 

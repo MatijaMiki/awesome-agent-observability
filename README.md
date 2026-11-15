@@ -38,21 +38,20 @@ Find what you are evaluating or observing; the entries named are in the sections
 | Evaluate an Agent Skill                                    | skill-creator, coder-eval                                                        |
 | Test an MCP server                                         | MCP Conformance, MCP Inspector, MCPMark, MCP-Atlas; MCP Scanner for security     |
 | Red-team an app or agent                                   | Promptfoo, garak, DeepTeam                                                       |
-| Trace token use from any CLI harness                       | LiteLLM into an OpenTelemetry Collector (see Recipes)                            |
+| Trace token use from CLI harnesses                         | LiteLLM into an OpenTelemetry Collector (see Recipes)                            |
 | Score a model's function calls                             | BFCL, AgentEvals, DeepEval                                                       |
-
 
 ## Recipes
 
 Short patterns that use tools already on this list. Each was run on a Linux box with local models only; commands and output are in [`evidence/recipes.md`](evidence/recipes.md).
 
-**Trace any CLI harness through a gateway.** Point Claude Code, OpenCode, Pi, or another OpenAI-compatible CLI at a LiteLLM proxy with the `otel` callback writing into an OpenTelemetry Collector. You get per-request input and output token counts, model, latency, and user-agent spans without harness-specific setup. Claude Code's own monitoring can send to the same collector, but on local models it may report a phantom cost and only session-level metrics.
+**Trace any CLI harness through a gateway.** Point Claude Code (through `ANTHROPIC_BASE_URL`), OpenCode, Pi, or another CLI that accepts a custom Anthropic- or OpenAI-compatible base URL at a LiteLLM proxy with the `otel` callback writing into an OpenTelemetry Collector. You get spans with per-request input and output token counts, model, latency, and user agent, without harness-specific instrumentation. Claude Code's own monitoring can send to the same collector, but on local models it may report a phantom cost and only session-level metrics.
 
-**Run MCP Conformance through a proxy.** Point MCP Conformance at the proxy in front of the server, not only at the server itself, so buffering and protocol bugs show up. For a stdio server, mcp-trace `--stdio` can be the HTTP bridge the suite needs.
+**Run MCP Conformance through a proxy.** Point MCP Conformance at the proxy in front of the server, not only at the server itself, so buffering and protocol bugs show up. For a stdio server, mcp-trace `--stdio` gives the suite an HTTP endpoint for request/response scenarios; it forwards POST requests only and does not relay server notifications or server-to-client requests, so logging, progress, sampling, and elicitation scenarios fail through it.
 
-**Run a harness eval without Docker.** Harbor and Inspect SWE expect container sandboxes. Inspect can also run a custom subprocess solver in its `local` sandbox and score with exact or hidden tests and `model_graded_qa`.
+**Run a harness eval without Docker.** Harbor and Inspect SWE expect container sandboxes. Inspect can also run a task with no sandbox, or with its built-in `local` sandbox (the host file system, no isolation), so a custom solver can shell out to each CLI on the host and score with hidden tests and `model_graded_qa`; the agent then runs with your user's permissions.
 
-**Promptfoo Node version.** Promptfoo 0.125 and later require Node 22.22 or newer (`engines.node`). Node 22.20 fails; use a newer Node if `npx promptfoo` errors on startup.
+**Promptfoo Node version.** Promptfoo 0.122 and later require Node 22.22 or newer (`engines.node`). Node 22.20 fails; use a newer Node if `npx promptfoo` errors on startup.
 
 ## Standards and instrumentation
 
@@ -116,6 +115,7 @@ Telemetry, usage, and cost analysis for CLI coding agents such as Claude Code, C
 - [Autoevals](https://github.com/braintrustdata/autoevals) - Standalone library of model-graded and heuristic scorers usable outside Braintrust.
 - [OpenEvals](https://github.com/langchain-ai/openevals) - Readymade evaluators for LLM apps: LLM-as-judge prompts, exact and string-distance matchers, and structured-output checks, as functions that return scored results and plug into pytest or LangSmith, in Python and TypeScript.
 - [AgentEvals](https://github.com/langchain-ai/agentevals) - Evaluators that score an agent's tool-call trajectory against a reference with strict, unordered, subset, or superset matching, or with an LLM judge; MIT.
+- [BFCL](https://github.com/ShishirPatil/gorilla/tree/main/berkeley-function-call-leaderboard) - Evaluates a model's function calling on single-turn, live, multi-turn, and agentic web-search and memory tasks, checking single-turn calls by AST match and running multi-turn and agentic calls against the benchmark's API backends; Apache-2.0, part of the Gorilla repository.
 - [HermesGate](https://github.com/roli-lpci/hermes-gate) - Runs a repository's own checks and stores a receipt keyed to the content and tool versions checked; in `fast` and `review` modes an identical receipt is reused as a PASS and any change re-runs the checks, giving an agent's own PR a repeatable pre-review result.
 - [NovaFabric](https://github.com/MSKazemi/novafabric) - Self-hosted CLI whose `nova capture` wraps any command, such as an agent script, and records the run as a portable Run Capsule that you can replay and structurally diff against another run; Apache-2.0, pre-1.0.
 - [LEEVAR Battery](https://github.com/forevercrab321-svg/leevar-battery) - Grades agent conversation transcripts on 18 tests across six dimensions with a judge model you configure, reports tests the transcript cannot evidence as NOT TESTED and leaves them out of the score, and issues no letter grade when two thirds or fewer of the tests have evidence; MIT, and the same authors run an optional hosted scan.
@@ -126,12 +126,11 @@ Telemetry, usage, and cost analysis for CLI coding agents such as Claude Code, C
 Harnesses that run an agent, or a whole CLI coding agent, on tasks in a sandbox and grade the outcome, usually with tests the agent cannot see; use them to compare models, harnesses, and configurations on the same tasks.
 
 - [Harbor](https://github.com/harbor-framework/harbor) - Runs agents, including Claude Code, Codex CLI, Gemini CLI, OpenCode, and Cursor CLI, on containerized tasks and scores each trial with the task's own test script, so harnesses and models can be compared on the same tasks, with Terminal-Bench and other datasets in its registry; Apache-2.0.
-- [τ²-bench](https://github.com/sierra-research/tau2-bench) - Simulates a tool-using customer-service agent and a user, each with their own tools, through tasks in airline, retail, telecom, and other domains, and scores each trial by whether the database ends in the gold state and whether required information was communicated, in text or voice; MIT.
+- [τ²-bench](https://github.com/sierra-research/tau2-bench) - Runs a tool-using customer-service agent against an LLM-simulated user, who also has tools in some domains such as telecom, through tasks in airline, retail, telecom, and other domains, and by default scores each trial by whether the database ends in the gold state and whether required information was communicated, in text or voice; MIT.
 - [Inspect SWE](https://github.com/meridianlabs-ai/inspect_swe) - Wraps Claude Code, Codex CLI, Gemini CLI, OpenCode, and other CLI coding agents as Inspect agents that run in an Inspect sandbox with their model calls routed through Inspect, so any Inspect model, scorer, and log viewer applies to them; MIT.
 - [coder-eval](https://github.com/UiPath/coder_eval) - Runs Claude Code, Codex, OpenCode, and other CLI coding agents on YAML tasks in a sandbox and grades the workspace and trajectory with deterministic checks such as file contents, commands, and whether a given skill was loaded, or with LLM judges, including A/B runs across agents, models, and skills; Apache-2.0.
 - [SWE-bench](https://github.com/SWE-bench/SWE-bench) - Harness that applies a candidate patch to a real GitHub repository inside a per-issue Docker image and runs the repository's held-out FAIL_TO_PASS and PASS_TO_PASS tests to decide whether the issue is resolved; MIT.
 - [Inspect Evals](https://github.com/UKGovernmentBEIS/inspect_evals) - Ready-made Inspect tasks for published benchmarks, from GSM8K to agentic and cybersecurity suites, run against any Inspect-supported model with one `inspect eval` command; MIT.
-- [BFCL](https://github.com/ShishirPatil/gorilla/tree/main/berkeley-function-call-leaderboard) - Evaluates a model's function calling on single-turn, live, multi-turn, and agentic web-search and memory tasks, checking arguments with AST match and executing calls against tool backends; Apache-2.0, part of the Gorilla repository.
 - [YYLO Benchmark](https://github.com/yylo-dev/yylo-benchmark) - Runs coding prompts and tasks across models and harnesses on fresh checkouts, keeps every output unchanged, and lets you re-evaluate them later with new checks or judges.
 - [AgentDojo](https://github.com/ethz-spylab/agentdojo) - ETH Zurich benchmark and framework for tool-using agents against prompt injection, with task suites and attack and defense pipelines that report utility and attack success.
 - [ClawBench](https://github.com/TIGER-AI-Lab/ClawBench) - Live-web benchmark for evaluating browser and computer-use agents on about 280 everyday tasks, with request interception and recorded execution evidence.
@@ -171,7 +170,7 @@ Tools that check what an MCP server does: protocol conformance, manual calls, an
 - [MCP Inspector](https://github.com/modelcontextprotocol/inspector) - Official UI for calling an MCP server's tools by hand and reading the raw JSON-RPC traffic.
 - [MCPMark](https://github.com/eval-sys/mcpmark) - Benchmark of tasks over real Filesystem, GitHub, Notion, PostgreSQL, and Playwright MCP servers, each run from a fresh copy of its environment and checked by a per-task verification script, with models called through LiteLLM; Apache-2.0.
 - [MCP-Universe](https://github.com/SalesforceAIResearch/MCP-Universe) - Salesforce framework and benchmark that runs agents against real MCP servers for maps, finance, GitHub, browser, and other tasks and grades their outputs with rule-based evaluators; Apache-2.0.
-- [MCP-Atlas](https://github.com/scaleapi/mcp-atlas) - Runs an agent against 36 real MCP servers in a Docker sandbox on 500 public tasks and scores the final answer with an LLM judge on claim coverage, plus a diagnostic taxonomy of tool-call and cognitive failures; MIT.
+- [MCP-Atlas](https://github.com/scaleapi/mcp-atlas) - Runs an agent against 36 real MCP servers (20 without API keys) in a Docker sandbox on 500 public tasks and scores the final answer with an LLM judge on claim coverage, plus a diagnostic taxonomy of tool-call and cognitive failures; MIT.
 
 ## Model Context Protocol
 

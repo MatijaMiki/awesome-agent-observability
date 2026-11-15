@@ -1,6 +1,6 @@
 # ctxlens (new entry)
 
-Checked 2026-11-15 with `AgentPostmortem/Ctxlens` installed from the clone into a local venv (`ctxlens-cli` 0.3-era, MIT). Created 2026-07-27 (older than 8 weeks). Last default-branch commit 2026-10-01.
+Checked 2026-11-15 with `AgentPostmortem/Ctxlens` installed from the clone into a local venv (`ctxlens-cli` 0.1.1, MIT). Created 2026-07-27 (older than 8 weeks). Last default-branch commit 2026-10-01.
 
 Claim in the list line: parses coding-agent transcripts and reports context composition, a waste ratio, and recommendations.
 

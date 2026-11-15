@@ -2,7 +2,7 @@
 
 Checked 2026-11-15 with PyPI `bfcl-eval==2026.3.23` (byte-identical to `ShishirPatil/gorilla` default-branch commit `6ea5797` on 2026-03-23, the Berkeley Function Calling Leaderboard tree). Apache-2.0. The gorilla repository was created 2023-05-19. The last default-branch commit is within 12 months (about 237 days before this check; the 9-month watch mark is around 2026-12-18).
 
-Claim in the list line: evaluates function calling with AST and executable checks, including multi-turn and agentic categories.
+Claim in the list line: evaluates a model's function calling on single-turn, live, multi-turn, and agentic web-search and memory tasks, checking single-turn calls by AST match and running multi-turn and agentic calls against the benchmark's API backends.
 
 The CLI needed an extra `soundfile` package before it would start (`qwen_agent` imports it at import time). After that:
 
