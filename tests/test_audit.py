@@ -1,6 +1,10 @@
 import datetime as dt
+import os
 import sys
+import tempfile
 import unittest
+import urllib.error
+from unittest import mock
 
 sys.path.insert(0, "scripts")
 import audit
@@ -102,6 +106,22 @@ class CheckUrl(unittest.TestCase):
         fetch = fake_fetch({("https://a.dev/x", "HEAD"): (404, None)})
         self.assertEqual(audit.check_url("https://a.dev/x", fetch), [("remove", "https://a.dev/x returns 404")])
 
+    def test_any_head_error_retries_with_get(self):
+        for code in (400, 404, 501):
+            fetch = fake_fetch({("https://a.dev/x", "HEAD"): (code, None), ("https://a.dev/x", "GET"): (200, None)})
+            self.assertEqual(audit.check_url("https://a.dev/x", fetch), [], code)
+
+    def test_mixed_chain_suggests_last_permanent_target(self):
+        fetch = fake_fetch({
+            ("https://a.dev/old", "HEAD"): (301, "https://a.dev/new"),
+            ("https://a.dev/new", "HEAD"): (302, "https://a.dev/new?session=1"),
+            ("https://a.dev/new?session=1", "HEAD"): (200, None),
+        })
+        self.assertEqual(
+            audit.check_url("https://a.dev/old", fetch),
+            [("fix", "permanently redirects to https://a.dev/new; update the link")],
+        )
+
     def test_head_refused_retries_with_get(self):
         fetch = fake_fetch({("https://a.dev/x", "HEAD"): (405, None), ("https://a.dev/x", "GET"): (200, None)})
         self.assertEqual(audit.check_url("https://a.dev/x", fetch), [])
@@ -171,3 +191,31 @@ class TableAge(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CrashSafety(unittest.TestCase):
+    README = "- [Gh](https://github.com/o/gh) - x.\n"
+
+    def run_main(self, prior_status=None):
+        with tempfile.TemporaryDirectory() as d:
+            readme, status = os.path.join(d, "README.md"), os.path.join(d, "status.txt")
+            with open(readme, "w") as f:
+                f.write(self.README)
+            if prior_status:
+                with open(status, "w") as f:
+                    f.write(prior_status)
+            with self.assertRaises(RuntimeError), mock.patch("sys.stdout"):
+                audit.main([readme, "--status-file", status])
+            return open(status).read() if os.path.exists(status) else None
+
+    def test_crash_never_yields_clean(self):
+        with mock.patch.object(audit, "check_repo", side_effect=RuntimeError("boom")):
+            self.assertIsNone(self.run_main())
+            self.assertIsNone(self.run_main(prior_status=audit.STATUS_CLEAN))
+
+    def test_api_timeout_is_a_check_finding_not_a_crash(self):
+        for exc in (TimeoutError("timed out"), urllib.error.URLError("unreachable")):
+            with mock.patch("urllib.request.urlopen", side_effect=exc):
+                findings, failed = audit.check_repo("Gh", "o", "gh", NOW)
+            self.assertEqual(findings, [("check", "GitHub API returned None for o/gh")])
+            self.assertTrue(failed)

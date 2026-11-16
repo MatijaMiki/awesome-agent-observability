@@ -37,14 +37,12 @@ USER_AGENT = "awesome-list-audit"
 HTTP_OK = 200
 HTTP_MULTIPLE_CHOICES = 300
 HTTP_BAD_REQUEST = 400
-HTTP_FORBIDDEN = 403
 HTTP_NOT_FOUND = 404
-HTTP_METHOD_NOT_ALLOWED = 405
 HTTP_GONE = 410
 PERMANENT_REDIRECTS = {301, 308}
 TEMPORARY_REDIRECTS = {302, 303, 307}
-# Some sites refuse HEAD; retry those with GET before judging the link.
-RETRY_WITH_GET = {HTTP_FORBIDDEN, HTTP_METHOD_NOT_ALLOWED}
+# Some sites answer HEAD with an error (403, 404, 405, 501, ...) but serve GET;
+# any 4xx/5xx from HEAD is retried with GET before the link is judged.
 DEAD = {HTTP_NOT_FOUND, HTTP_GONE}
 NETWORK_ERROR = None  # status returned by fetch when no HTTP response arrived
 
@@ -123,20 +121,24 @@ def check_url(url, fetch=http_fetch):
     fetch(url, method) -> (status or None, location) does one request without
     following redirects; tests pass a fake so no network is used.
     """
-    current, permanent = url, False
+    # permanent_target is the target of the last permanent hop: in a chain like
+    # 301 -> 302 -> 200 the link should move to the 301's target, not to the
+    # temporary final URL.
+    current, permanent_target = url, None
     for _ in range(MAX_REDIRECTS + 1):
         status, location = fetch(current, "HEAD")
-        if status in RETRY_WITH_GET:
+        if status is not NETWORK_ERROR and status >= HTTP_BAD_REQUEST:
             status, location = fetch(current, "GET")
         if status is NETWORK_ERROR:
             return [("check", f"{current} did not respond")]
         if status in PERMANENT_REDIRECTS | TEMPORARY_REDIRECTS and location:
-            permanent = permanent or status in PERMANENT_REDIRECTS
             current = urllib.parse.urljoin(current, location)
+            if status in PERMANENT_REDIRECTS:
+                permanent_target = current
             continue
         if HTTP_OK <= status < HTTP_MULTIPLE_CHOICES:
-            if permanent and current != url:
-                return [("fix", f"permanently redirects to {current}; update the link")]
+            if permanent_target and permanent_target != url:
+                return [("fix", f"permanently redirects to {permanent_target}; update the link")]
             return []
         if status in DEAD:
             return [("remove", f"{current} returns {status}")]
@@ -174,6 +176,10 @@ def gh_get(path):
             return resp.status, json.load(resp)
     except urllib.error.HTTPError as e:
         return e.code, None
+    except (urllib.error.URLError, OSError):
+        # Timeouts and connection errors become a "check" finding instead of
+        # crashing the run (TimeoutError is an OSError).
+        return None, None
 
 
 def judge(name, owner, repo, meta, last_commit, now):
@@ -220,8 +226,10 @@ def check_repo(name, owner, repo, now):
     return judge(name, owner, repo, meta, last_commit_date(owner, repo), now), False
 
 
-def audit(text, now, repo_check=check_repo, url_check=check_url):
+def audit(text, now, repo_check=None, url_check=None):
     """Return (entries, report, api_failures, repos_checked)."""
+    repo_check = repo_check or check_repo
+    url_check = url_check or check_url
     report, api_failures, repos_checked = [], 0, 0
     entries = parse_entries(text)
     for name, url, repo, extra in entries:
@@ -253,11 +261,16 @@ def main(argv):
         status_file = args[i + 1]
         del args[i : i + 2]
     path = args[0] if args else "README.md"
+    if status_file and os.path.exists(status_file):
+        # A stale file must never stand in for this run's result.
+        os.remove(status_file)
     now = dt.datetime.now(dt.timezone.utc)
     with open(path) as f:
         entries, report, api_failures, repos_checked = audit(f.read(), now)
     print(render(entries, report, now))
     if status_file:
+        # Written only after the audit finished; a crash leaves no file, and the
+        # workflow treats a missing file as "do not close the issue".
         with open(status_file, "w") as f:
             f.write(STATUS_ACTIONABLE if is_actionable(report) else STATUS_CLEAN)
     return 1 if repos_checked and api_failures == repos_checked else 0
