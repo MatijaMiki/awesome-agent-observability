@@ -1,5 +1,7 @@
 # MCP Conformance (modelcontextprotocol/conformance)
 
+> Note (2026-11-16): mcp-trace has since been retired and archived by the maintainer and is no longer on the list; this record is kept as the run log of that date.
+
 Version: `@modelcontextprotocol/conformance` 0.1.16 (npx). Repo created 2025-07-10; last push 2026-11-11. License file: Apache-2.0, with MIT for contributions not yet relicensed.
 
 ## Reference server: all scenarios pass
