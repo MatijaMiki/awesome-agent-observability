@@ -1,8 +1,8 @@
 # Awesome Agent Observability [![Awesome](https://awesome.re/badge.svg)](https://awesome.re)
 
-> Curated tools, standards, and platforms for tracing, evaluating, and governing LLM and AI-agent applications, and for evaluating the agents, coding-agent harnesses, skills, and MCP servers they are built from.
+> Tools, standards, and benchmarks for tracing and evaluating AI products (LLM apps, agents, coding-agent harnesses, Agent Skills, and MCP servers), with evaluations graded by LLM judges or deterministic checks.
 
-Agents fail in ways ordinary services do not: a run is non-deterministic, spans a dozen model and tool calls, and "wrong" is a quality judgement rather than a status code. The projects below cover the resulting stack — OpenTelemetry conventions for GenAI, tracing backends, telemetry from coding agents such as Claude Code and Codex, evaluation frameworks with LLM-as-judge and deterministic scorers, benchmark harnesses that run agents and CLI harnesses in sandboxes and grade them with tests, skill and MCP server testing, guardrails, gateways, and Model Context Protocol tooling.
+For engineers who build or run AI agents and need to see what a run did, what it cost, and whether it was right. It covers OpenTelemetry conventions, tracing platforms, coding-agent telemetry, eval frameworks, agent and harness benchmarks, skill and MCP server testing, and guardrails. Every entry is held to the list's [requirements](CONTRIBUTING.md#requirements): alive, maintained, and at least 8 weeks old, and new entries are run hands-on before they are added; the next paragraph says which older entries could not be run.
 
 Entries say what a project does, not what it markets, and carry its license where that is not plainly open source. Projects that were dormant, end-of-life, out of scope, or too young to judge were left out. Most entries were installed or built and run against a mock backend at the 2026-10-04 audit; a few could not be run (for example Kong, SigNoz, and anything needing Docker or a hosted account), so this list does not claim every entry was exercised. Entries added at the 2026-11-15 evals expansion, and in the follow-up later that day, were each run on a Linux box with local models or mocks only, and the commands and output are in [`evidence/`](evidence/). A weekly job re-checks that each repository still exists, is not archived, and has a recent commit.
 
@@ -22,6 +22,7 @@ Entries say what a project does, not what it markets, and carry its license wher
 - [MCP server testing](#mcp-server-testing)
 - [Model Context Protocol](#model-context-protocol)
 - [Agent frameworks with built-in tracing](#agent-frameworks-with-built-in-tracing)
+- [Related lists](#related-lists)
 
 ## Where to start
 
@@ -65,6 +66,25 @@ Short patterns that use tools already on this list. Each was run on a Linux box 
 - [OpenLIT](https://github.com/openlit/openlit) - OTel-native auto-instrumentation SDK for LLM, vector-database, and GPU calls, with a self-hosted UI to read the resulting traces.
 
 ## Tracing and observability platforms
+
+Last verified 2026-11-16 from each project's docs or repository; the source for every cell is in [`evidence/comparison-table.md`](evidence/comparison-table.md). "Not documented" means the docs checked do not say, not that the feature is missing. OTel GenAI conventions means the platform documents reading `gen_ai.*` span attributes on ingest.
+
+| Platform         | Licence                               | Self-host              | OTLP ingest    | OTel GenAI conventions | Evals built in |
+| ---------------- | ------------------------------------- | ---------------------- | -------------- | ---------------------- | -------------- |
+| Langfuse         | MIT, open-core (`ee/`)                | Yes                    | Yes            | Yes                    | Yes            |
+| Arize Phoenix    | Elastic License 2.0                   | Yes                    | Yes            | Yes                    | Yes            |
+| LangSmith        | Closed; MIT SDKs                      | Enterprise add-on      | Yes            | Yes                    | Yes            |
+| Opik             | Apache-2.0                            | Yes                    | Yes            | Yes                    | Yes            |
+| LangWatch        | Apache-2.0, open-core (`enterprise/`) | Yes                    | Yes            | Not documented         | Yes            |
+| Laminar          | Apache-2.0                            | Yes                    | Yes            | Yes                    | Yes            |
+| Agenta           | MIT, open-core (`ee/`)                | Yes                    | Yes            | Not documented         | Yes            |
+| Pydantic Logfire | Closed; MIT SDK                       | Enterprise plan        | Yes            | Yes                    | Yes            |
+| W&B Weave        | Apache-2.0                            | With a W&B licence     | Yes            | Yes                    | Yes            |
+| MLflow Tracing   | Apache-2.0                            | Yes                    | Yes            | Yes                    | Yes            |
+| Braintrust       | Closed                                | Data plane only (BYOC) | Yes            | Yes                    | Yes            |
+| AgentOps         | MIT SDK; app Elastic License 2.0      | Yes                    | Not documented | Not documented         | Not documented |
+| Noveum Trace     | Apache-2.0 SDK; hosted backend        | Not documented         | Not documented | Not documented         | Not documented |
+| Agnost AI        | Closed; MIT SDKs                      | Not documented         | Yes            | Yes                    | Yes            |
 
 - [Langfuse](https://github.com/langfuse/langfuse) - Self-hostable tracing, prompt management, datasets, and evals; ingests OTel as well as its own SDKs; open-core, MIT outside the `ee/` directories.
 - [Arize Phoenix](https://github.com/Arize-ai/phoenix) - Trace viewer and eval workbench that runs locally in a notebook or as a server; source-available under the Elastic License 2.0.
@@ -190,6 +210,10 @@ Tools that check what an MCP server does: protocol conformance, manual calls, an
 - [Google ADK](https://github.com/google/adk-python) - Agent toolkit with built-in evaluation and OpenTelemetry-based tracing.
 - [Pydantic AI](https://github.com/pydantic/pydantic-ai) - Agent framework with opt-in OpenTelemetry instrumentation (`Agent.instrument_all()`), viewable in Logfire or any OTel backend.
 - [Cognipeer Agent SDK](https://github.com/Cognipeer/agent-sdk) - TypeScript agent runtime with opt-in tracing whose `otlpSink` or `otelTracing` plugin exports each run as OpenTelemetry GenAI spans (`invoke_agent`, `chat`, `execute_tool`) over OTLP/HTTP to any collector; MIT.
+
+## Related lists
+
+[awesome-agent-orchestration](https://github.com/anhermon/awesome-agent-orchestration), this list's sister, maps tools for orchestrating agents and running software factories. Outside it, [awesome-llm-observability](https://github.com/ContextJet-ai/awesome-llm-observability) covers LLM observability with a comparison table, [Awesome-LLMOps](https://github.com/tensorchord/Awesome-LLMOps) covers the wider LLM operations stack, and [awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers) lists MCP servers to test with the tools here.
 
 ## Contributing
 
