@@ -10,7 +10,7 @@ Projects that were proposed and not added, or listed and later removed, with the
 | agent-watch | 2026-09-28 | [#12](https://github.com/anhermon/awesome-agent-observability/pull/12) | Out of scope (threshold 6): it reports the process state of background coding agents (running, done, failed, stalled) and does not trace model calls, tool calls, or agent steps. |
 | Speakeasy | 2026-09-28 | [#13](https://github.com/anhermon/awesome-agent-observability/pull/13) | Linked to a product marketing page rather than a repository or docs that back the description (threshold 5). |
 | OpenClaw Monitor | 2026-10-15 | [#27](https://github.com/anhermon/awesome-agent-observability/pull/27) | No commit since 2026-05-14 at review time, a repository made mostly of generated status files rather than install and usage docs, and an endpoint that crashed in the submitter's own run (thresholds 2, 5, and 8). |
-| Agent Lightning | 2026-11-16 | [#47](https://github.com/anhermon/awesome-agent-observability/issues/47) | Out of scope (threshold 6): a reinforcement-learning framework for training agents, whose gateway captures agent interactions as training data rather than for observing or evaluating the agent. |
+| Agent Lightning | 2026-11-16 | [#47](https://github.com/anhermon/awesome-agent-observability/issues/47) | Out of scope (threshold 6): a reinforcement-learning framework for training agents, whose proxy captures agent interactions as training data rather than for observing or evaluating the agent. |
 
 ## Removed
 
@@ -30,7 +30,7 @@ Projects that were proposed and not added, or listed and later removed, with the
 | SandBase Harness | 2026-10-04 | [#21](https://github.com/anhermon/awesome-agent-observability/pull/21) | Too young to judge, and the description did not match the project (thresholds 4 and 10). |
 | Helicone | 2026-10-15 | [#29](https://github.com/anhermon/awesome-agent-observability/pull/29) | Maintenance mode only since the March 2026 Mintlify acquisition (threshold 3). |
 | sealref | 2026-10-17 | [6f1264c](https://github.com/anhermon/awesome-agent-observability/commit/6f1264ce5a0c826a3c4c939260ffc1e6d4fc4fad) | Under 8 weeks old (threshold 4); the maintainer's own project, eligible to resubmit after 2026-11-26. |
-| mcp-trace | 2026-11-16 | [archive notice](https://github.com/anhermon/mcp-trace#readme) | Retired and archived by the maintainer (thresholds 1 and 3). |
+| mcp-trace | 2026-11-16 | [archive notice](https://github.com/anhermon/mcp-trace#readme) | Repository archived on 2026-11-16 (threshold 1); its README says the project is no longer developed (threshold 3). |
 
 ## Closed pull requests whose project is listed
 
