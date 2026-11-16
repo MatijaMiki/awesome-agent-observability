@@ -37,6 +37,7 @@ Find what you are evaluating or observing; the entries named are in the sections
 | Check an agent's tool-call path                            | AgentEvals, DeepEval                                                             |
 | Compare models or coding-agent harnesses on the same tasks | Harbor, Inspect SWE, coder-eval, τ²-bench                                        |
 | Evaluate an Agent Skill                                    | skill-creator, coder-eval                                                        |
+| Trace MCP tool calls                                       | ToolHive, Agentgateway, MCP Context Forge; TypeScript, Python, C# SDK spans      |
 | Test an MCP server                                         | MCP Conformance, MCP Inspector, MCPMark, MCP-Atlas; MCP Scanner for security     |
 | Red-team an app or agent                                   | Promptfoo, garak, DeepTeam, PyRIT                                                |
 | Trace token use from CLI harnesses                         | LiteLLM into an OpenTelemetry Collector (see Recipes)                            |
@@ -56,7 +57,11 @@ Short patterns that use tools already on this list. Each was run on a Linux box 
 
 ## Standards and instrumentation
 
+MCP carries W3C trace context in each request's `params._meta` as unprefixed `traceparent`, `tracestate`, and `baggage` keys, per [SEP-414](https://modelcontextprotocol.io/community/seps/414-request-meta) (Final). As of 2026-11-16, the official [TypeScript](https://github.com/modelcontextprotocol/typescript-sdk/blob/main/docs/advanced/opentelemetry.md), [Python](https://github.com/modelcontextprotocol/python-sdk/blob/main/src/mcp/shared/_otel.py), and [C#](https://github.com/modelcontextprotocol/csharp-sdk/blob/main/src/ModelContextProtocol.Core/Diagnostics.cs) SDKs inject and extract it with OpenTelemetry, the [PHP](https://github.com/modelcontextprotocol/php-sdk/blob/main/src/Schema/RequestMeta.php), [Rust](https://github.com/modelcontextprotocol/rust-sdk/blob/main/crates/rmcp/src/model/meta.rs), and [Ruby](https://github.com/modelcontextprotocol/ruby-sdk/blob/main/lib/mcp/trace_context.rb) SDKs read and pass the keys without emitting spans themselves, and no support was found in the Go or Java SDK source.
+
 - [OpenTelemetry GenAI Semantic Conventions](https://github.com/open-telemetry/semantic-conventions-genai) - Repository that now owns the GenAI spans, metrics, and events, moved out of the main semantic-conventions repo.
+- [OpenTelemetry MCP semantic conventions](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/mcp.md) - Client and server span and metric conventions for MCP requests, naming spans after the method and target (such as `tools/call get-weather`) and carrying trace context in `params._meta`; status Development.
+- [OpenTelemetry GenAI agent spans](https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-agent-spans.md) - Span conventions for creating an agent (`create_agent {gen_ai.agent.name}`) and invoking one (`invoke_agent`), with their attributes; status Development.
 - [OpenTelemetry Semantic Conventions](https://github.com/open-telemetry/semantic-conventions) - Parent repo for all OTel conventions, including the HTTP, RPC, and database spans an agent stack also emits.
 - [OpenTelemetry GenAI Observability SIG](https://github.com/open-telemetry/community/blob/main/projects/gen-ai.md) - Charter and scope of the OTel project group driving GenAI telemetry; the place to track where the conventions are heading.
 - [OpenTelemetry Python GenAI instrumentation](https://github.com/open-telemetry/opentelemetry-python-genai) - Upstream instrumentation packages for OpenAI, Anthropic, Google GenAI, LangChain, Bedrock, and several agent frameworks.
@@ -179,10 +184,10 @@ Tools that check whether an Agent Skill is loaded when it should be and whether 
 - [LiteLLM](https://github.com/BerriAI/litellm) - SDK and proxy exposing 100+ providers behind the OpenAI API, with cost tracking, logging, and callbacks to most platforms above; open-core, MIT outside the `enterprise/` directory.
 - [Portkey AI Gateway](https://github.com/Portkey-AI/gateway) - Routing gateway with retries, fallbacks, caching, and inline guardrails.
 - [Bifrost](https://github.com/maximhq/bifrost) - Go gateway that fronts multiple LLM providers behind one OpenAI-compatible API, with key load balancing, fallbacks, and Prometheus and OpenTelemetry telemetry; guardrails are enterprise-only.
-- [Agentgateway](https://github.com/agentgateway/agentgateway) - Linux Foundation proxy for agent-to-LLM, agent-to-MCP, and agent-to-agent (A2A) traffic with routing, guardrails, RBAC, and OpenTelemetry.
+- [Agentgateway](https://github.com/agentgateway/agentgateway) - Linux Foundation proxy for agent-to-LLM, agent-to-MCP, and agent-to-agent (A2A) traffic with routing, guardrails, and RBAC, which, with tracing configured, exports an OTLP span per upstream MCP call carrying `mcp.method.name` and `gen_ai.tool.name`, plus per-tool call counters as Prometheus metrics.
 - [Traceloop Hub](https://github.com/traceloop/hub) - Small Rust LLM gateway from the OpenLLMetry authors, with OTel emission built in.
 - [Kong](https://github.com/Kong/kong) - API gateway whose AI plugins add LLM routing, token metrics, and request logging to an existing gateway deployment.
-- [Recued](https://github.com/recued/recued) - Self-hosted MCP gateway between AI agents and the owner's mail, calendar, files and CRM that checks each tool call against a per-agent contract and holds writes for the owner's approval by default; AGPL-3.0.
+- [Recued](https://github.com/recued/recued) - Self-hosted MCP gateway between AI agents and the owner's mail, calendar, files and CRM that checks each tool call against a per-agent contract and holds writes for the owner's approval by default, and documents no OpenTelemetry export; AGPL-3.0.
 
 ## MCP server testing
 
@@ -198,10 +203,10 @@ Tools that check what an MCP server does: protocol conformance, manual calls, an
 
 - [Model Context Protocol](https://github.com/modelcontextprotocol/modelcontextprotocol) - The specification itself; the source of truth for what a compliant client, server, and transport must do.
 - [MCP Registry](https://github.com/modelcontextprotocol/registry) - Official, community-owned registry service for publishing and discovering MCP servers; still in preview.
-- [ToolHive](https://github.com/stacklok/toolhive) - Runs MCP servers in containers with permission policies, secrets handling, and audit logging.
-- [MCPJungle](https://github.com/mcpjungle/MCPJungle) - Self-hosted registry and single gateway endpoint for the MCP servers an organisation runs.
-- [MCP Context Forge](https://github.com/IBM/mcp-context-forge) - Gateway and registry that federates MCP servers and REST APIs behind one endpoint, with auth, plugins, and OpenTelemetry tracing of tool calls; Apache-2.0.
-- [Docker MCP Gateway](https://github.com/docker/mcp-gateway) - Docker CLI plugin that fronts multiple MCP servers behind one gateway with container isolation.
+- [ToolHive](https://github.com/stacklok/toolhive) - Runs MCP servers in containers with permission policies, secrets handling, and audit logging, and its proxy exports OpenTelemetry traces and metrics for each MCP request with MCP semantic-convention attributes such as `mcp.method.name`.
+- [MCPJungle](https://github.com/mcpjungle/MCPJungle) - Self-hosted registry and single gateway endpoint for the MCP servers an organisation runs, exposing Prometheus metrics through OpenTelemetry but documenting no traces.
+- [MCP Context Forge](https://github.com/IBM/mcp-context-forge) - Gateway and registry that federates MCP servers and REST APIs behind one endpoint, with auth, plugins, and a `tool.invoke` OpenTelemetry span per tool call; Apache-2.0.
+- [Docker MCP Gateway](https://github.com/docker/mcp-gateway) - Docker CLI plugin that fronts multiple MCP servers behind one gateway with container isolation, and starts an `mcp.tool.call` OpenTelemetry span per tool call on the Docker CLI's tracer provider, which its code does; its README mentions call tracing but not OpenTelemetry.
 - [Aident Loadout](https://docs.aident.ai/loadout/overview) - Proprietary hosted service, with an MIT-licensed client skill, that gives agents a CLI and MCP endpoint for actions on connected apps, with vault-held credentials, a pre-run cost estimate, and an audit of recent actions with status and, where applicable, cost.
 
 ## Agent frameworks with built-in tracing
