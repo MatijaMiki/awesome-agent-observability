@@ -189,10 +189,6 @@ class TableAge(unittest.TestCase):
         self.assertIn("126 days", f[1])
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class CrashSafety(unittest.TestCase):
     README = "- [Gh](https://github.com/o/gh) - x.\n"
 
@@ -219,3 +215,7 @@ class CrashSafety(unittest.TestCase):
                 findings, failed = audit.check_repo("Gh", "o", "gh", NOW)
             self.assertEqual(findings, [("check", "GitHub API returned None for o/gh")])
             self.assertTrue(failed)
+
+
+if __name__ == "__main__":
+    unittest.main()
