@@ -36,7 +36,7 @@ Find what you are evaluating or observing; the entries named are in the sections
 | Check an agent's tool-call path                            | AgentEvals, DeepEval                                                             |
 | Compare models or coding-agent harnesses on the same tasks | Harbor, Inspect SWE, coder-eval, τ²-bench                                        |
 | Evaluate an Agent Skill                                    | skill-creator, coder-eval                                                        |
-| Trace MCP tool calls                                       | ToolHive, Agentgateway, MCP Context Forge; TypeScript, Python, C# SDK spans     |
+| Trace MCP tool calls                                       | ToolHive, Agentgateway, MCP Context Forge; TypeScript, Python, C# SDK spans      |
 | Test an MCP server                                         | MCP Conformance, MCP Inspector, MCPMark, MCP-Atlas; MCP Scanner for security     |
 | Red-team an app or agent                                   | Promptfoo, garak, DeepTeam                                                       |
 | Trace token use from CLI harnesses                         | LiteLLM into an OpenTelemetry Collector (see Recipes)                            |
