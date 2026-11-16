@@ -15,17 +15,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check every GitHub-hosted entry
+      - name: Check every entry
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 scripts/audit.py README.md | tee report.md
-      - name: Open or update the tracking issue
+        run: python3 scripts/audit.py README.md --status-file status.txt | tee report.md
+      - name: Open, update, or close the tracking issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh label create audit --description "Automated entry audit" --color BFD4F2 2>/dev/null || true
           existing=$(gh issue list --label audit --state open --json number --jq '.[0].number // empty')
-          if grep -qE '^## (remove|fix|check|watch)$' report.md; then
+          if [ "$(cat status.txt)" = "actionable" ]; then
             if [ -n "$existing" ]; then gh issue edit "$existing" --body-file report.md
             else gh issue create --title "Entry audit: action needed" --label audit --body-file report.md; fi
           elif [ -n "$existing" ]; then
