@@ -37,7 +37,7 @@ Find what you are evaluating or observing; the entries named are in the sections
 | Compare models or coding-agent harnesses on the same tasks | Harbor, Inspect SWE, coder-eval, τ²-bench                                        |
 | Evaluate an Agent Skill                                    | skill-creator, coder-eval                                                        |
 | Test an MCP server                                         | MCP Conformance, MCP Inspector, MCPMark, MCP-Atlas; MCP Scanner for security     |
-| Red-team an app or agent                                   | Promptfoo, garak, DeepTeam                                                       |
+| Red-team an app or agent                                   | Promptfoo, garak, DeepTeam, PyRIT                                                |
 | Trace token use from CLI harnesses                         | LiteLLM into an OpenTelemetry Collector (see Recipes)                            |
 | Score a model's function calls                             | BFCL, AgentEvals, DeepEval                                                       |
 
@@ -47,7 +47,7 @@ Short patterns that use tools already on this list. Each was run on a Linux box 
 
 **Trace any CLI harness through a gateway.** Point Claude Code (through `ANTHROPIC_BASE_URL`), OpenCode, Pi, or another CLI that accepts a custom Anthropic- or OpenAI-compatible base URL at a LiteLLM proxy with the `otel` callback writing into an OpenTelemetry Collector. You get spans with per-request input and output token counts, model, latency, and user agent, without harness-specific instrumentation. Claude Code's own monitoring can send to the same collector, but on local models it may report a phantom cost and only session-level metrics.
 
-**Run MCP Conformance through a proxy.** Point MCP Conformance at the proxy in front of the server, not only at the server itself, so buffering and protocol bugs show up. For a stdio server, mcp-trace `--stdio` gives the suite an HTTP endpoint for request/response scenarios; it forwards POST requests only and does not relay server notifications or server-to-client requests, so logging, progress, sampling, and elicitation scenarios fail through it.
+**Run MCP Conformance through a proxy.** Point MCP Conformance at the proxy or gateway in front of the server, not only at the server itself, so buffering and protocol bugs in the middle layer show up as failures that the direct run does not have.
 
 **Run a harness eval without Docker.** Harbor and Inspect SWE expect container sandboxes. Inspect can also run a task with no sandbox, or with its built-in `local` sandbox (the host file system, no isolation), so a custom solver can shell out to each CLI on the host and score with hidden tests and `model_graded_qa`; the agent then runs with your user's permissions.
 
@@ -76,7 +76,7 @@ Short patterns that use tools already on this list. Each was run on a Linux box 
 - [Pydantic Logfire](https://github.com/pydantic/logfire) - OTel-based observability with first-class Python, Pydantic, and agent instrumentation; the SDK is open source, the backend is hosted and closed.
 - [W&B Weave](https://github.com/wandb/weave) - Weights & Biases toolkit for logging, comparing, and evaluating LLM app versions; [docs](https://docs.coreweave.com/products/wandb/weave).
 - [MLflow Tracing](https://mlflow.org/docs/latest/genai/tracing/) - GenAI tracing built into [MLflow](https://github.com/mlflow/mlflow), so agent traces sit next to model runs and registries.
-- [Braintrust](https://www.braintrust.dev/docs/instrument) - Hosted eval and tracing platform; see [Autoevals](https://github.com/braintrustdata/autoevals) below for its open-source scorers.
+- [Braintrust](https://docs.braintrust.dev/instrument) - Hosted eval and tracing platform; see [Autoevals](https://github.com/braintrustdata/autoevals) below for its open-source scorers.
 - [AgentOps](https://github.com/AgentOps-AI/agentops) - Python SDK for session replay, cost tracking, and tracing across CrewAI, OpenAI Agents SDK, LangChain, AG2, and others; the SDK is MIT, the self-hostable app is Elastic License 2.0.
 - [Noveum Trace](https://github.com/Noveum/noveum-trace) - Python SDK whose context managers trace operations, LLM calls, and agent steps and send them over HTTPS to the hosted Noveum platform or a custom endpoint; the SDK is Apache-2.0, the backend is hosted.
 - [Agnost AI](https://docs.agnost.ai/online-evals) - Hosted platform that has an LLM judge each finished agent conversation against plain-English rules, labels user intent, and sends Slack or email alerts that can open a fix pull request; ingests OpenTelemetry, the Python and TypeScript conversation SDKs are MIT, the backend is hosted and closed source.
@@ -137,7 +137,7 @@ Harnesses that run an agent, or a whole CLI coding agent, on tasks in a sandbox 
 
 ## Skill evaluation
 
-Tools that check whether an Agent Skill is loaded when it should be and whether it improves results over running without it.
+Tools that check whether an Agent Skill is loaded when it should be and whether it improves results over running without it. coder-eval, listed under Agent and harness benchmarks, also checks whether a given skill was loaded and runs A/B comparisons with and without skills.
 
 - [skill-creator](https://github.com/anthropics/skills/tree/main/skills/skill-creator) - Anthropic's skill for building Agent Skills, whose scripts run `claude -p` on should-trigger and should-not-trigger queries to measure how often a skill's description makes Claude load it, and aggregate with-skill and baseline runs into pass-rate, time, and token deltas; Apache-2.0 per the skill's LICENSE.txt.
 
@@ -147,7 +147,9 @@ Tools that check whether an Agent Skill is loaded when it should be and whether 
 - [NeMo Guardrails](https://github.com/NVIDIA-NeMo/Guardrails) - NVIDIA toolkit for input, output, dialogue, and tool rails defined in Colang and Python.
 - [OpenAI Guardrails](https://github.com/openai/openai-guardrails-python) - Drop-in OpenAI client wrapper that runs configurable input and output checks (keywords, secret keys, PII, URLs, moderation, jailbreak and prompt-injection detection) and raises on a tripwire; preview release.
 - [garak](https://github.com/NVIDIA/garak) - LLM vulnerability scanner probing for jailbreaks, prompt injection, and data leakage.
+- [PyRIT](https://github.com/microsoft/PyRIT) - Microsoft AI Red Team's toolkit that sends single-turn or adaptive multi-turn attacks, optionally transformed by converters such as Base64, to a model, an HTTP endpoint, or a browser-driven app, and scores the responses with deterministic or LLM-judge scorers, from Python, a CLI scanner, or a web GUI; MIT.
 - [DeepTeam](https://github.com/confident-ai/deepteam) - Red-teaming framework that simulates jailbreaks, prompt injection, and related attacks against LLM and agent apps, built on DeepEval.
+- [PurpleLlama](https://github.com/meta-llama/PurpleLlama) - Meta's safety repository: Llama Guard and Prompt Guard classifier models, LlamaFirewall, which runs Prompt Guard, alignment-check, regex, and CodeShield scanners over agent inputs and outputs and returns allow, block, or human review, CodeShield's Semgrep and regex rules for insecure generated code, and the CyberSecEval benchmarks; code is MIT, the models use Llama community licenses.
 - [Presidio](https://github.com/data-privacy-stack/presidio) - PII detection, redaction, and anonymisation for text and images; useful for scrubbing traces before export.
 - [Snyk agent-scan](https://github.com/snyk/agent-scan) - Security scanner for MCP servers, agents, and skills, formerly Invariant Labs' `mcp-scan`; `inspect` lists what a config exposes locally, while `scan` needs a Snyk token and calls Snyk's hosted API.
 - [MCP Scanner](https://github.com/cisco-ai-defense/mcp-scanner) - Scans MCP servers' tools, prompts, resources, and instructions for poisoning and exfiltration patterns using YARA rules, optional LLM and behavioural analyzers, and a Cisco API analyzer; Apache-2.0.
@@ -176,7 +178,6 @@ Tools that check what an MCP server does: protocol conformance, manual calls, an
 
 - [Model Context Protocol](https://github.com/modelcontextprotocol/modelcontextprotocol) - The specification itself; the source of truth for what a compliant client, server, and transport must do.
 - [MCP Registry](https://github.com/modelcontextprotocol/registry) - Official, community-owned registry service for publishing and discovering MCP servers; still in preview.
-- [mcp-trace](https://github.com/anhermon/mcp-trace) - CLI proxy for MCP servers over SSE or Streamable HTTP that emits an OpenTelemetry span per tool call with duration, status, and propagated trace context, including Streamable HTTP tool calls that return `text/event-stream`.
 - [ToolHive](https://github.com/stacklok/toolhive) - Runs MCP servers in containers with permission policies, secrets handling, and audit logging.
 - [MCPJungle](https://github.com/mcpjungle/MCPJungle) - Self-hosted registry and single gateway endpoint for the MCP servers an organisation runs.
 - [MCP Context Forge](https://github.com/IBM/mcp-context-forge) - Gateway and registry that federates MCP servers and REST APIs behind one endpoint, with auth, plugins, and OpenTelemetry tracing of tool calls; Apache-2.0.

@@ -10,3 +10,5 @@ Setup used for every run:
 - Small local models fail many tasks. These runs prove that each tool installs, runs the subject, and grades it as described; they are not quality numbers for the models.
 
 The first batch of files is from the evals-scope expansion (PR #41). The follow-up later the same day added `recipes.md`, `tau2-bench.md`, `mcp-atlas.md`, `bfcl.md`, and `ctxlens.md`.
+
+The 2026-11-16 scope pass (issue #47) added `pyrit.md` and `purplellama.md`, run the same way with local models or no model.
