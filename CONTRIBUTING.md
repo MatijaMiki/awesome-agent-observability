@@ -29,6 +29,14 @@ only score a model on static questions (for example lm-evaluation-harness),
 unless they also run agents or tools; prompt libraries; and agent frameworks
 whose tracing or evaluation is an add-on rather than built in.
 
+Rules for recurring scope questions, one line each:
+
+- Red-teaming frameworks that send attacks to a model, app, or agent and score the responses are in scope, under Guardrails and security.
+- Guardrail and safety-classifier models are in scope when the project ships code that runs them as a check on inputs or outputs; a model card alone is not.
+- Agent training and fine-tuning frameworks are out of scope even when they capture traces or run benchmarks, because the traces feed training rather than observing or evaluating the agent.
+
+Projects that were declined or removed, and why, are in [DECLINED.md](DECLINED.md).
+
 ## Requirements
 
 These are the thresholds every entry is held to, at submission and at each audit.
@@ -66,5 +74,6 @@ the same way you would for someone else's.
 
 ## Process
 
-1. Fork, add your entry, run `npx awesome-lint`.
-2. Open a pull request describing what the project does and why it belongs.
+1. Check [DECLINED.md](DECLINED.md) first; if the project is there, say what has changed since.
+2. Fork, add your entry, run `npx awesome-lint`.
+3. Open a pull request describing what the project does and why it belongs.
