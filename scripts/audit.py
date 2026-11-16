@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-"""Mechanical health check for every GitHub-hosted entry in README.md.
+"""Mechanical health check for every entry in README.md.
 
-Flags repositories that are gone, archived, renamed or transferred, or whose
-last commit is older than the 12-month bar. It cannot judge quality or whether
-a description is still accurate; that is the hands-on re-audit.
+GitHub-hosted entries are checked through the GitHub API: gone, archived,
+renamed or transferred, past the 12-month bar, or without a license. Other
+entries get an HTTP check of their link: dead, erroring, or permanently
+redirected (reported with the new URL). A non-GitHub entry that also links a
+GitHub repository in the same line gets the repository checks too. It cannot
+judge quality or whether a description is still accurate; that is the
+hands-on re-audit.
 
-Usage: GITHUB_TOKEN=... python3 scripts/audit.py [README.md]
-Prints a Markdown report. Exit code is 0 unless the API is unreachable.
+Usage: GITHUB_TOKEN=... python3 scripts/audit.py [README.md] [--status-file PATH]
+Prints a Markdown report. With --status-file, writes "actionable" or "clean"
+to PATH so the workflow knows whether to open, update, or close the issue.
+Exit code is 0 unless the GitHub API is unreachable for every repository.
 """
 import datetime as dt
 import json
@@ -14,12 +20,41 @@ import os
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 STALE_DAYS = 365
 WARN_DAYS = 270
+# The comparison table carries a "Last verified YYYY-MM-DD" note; past this age
+# the audit asks for it to be re-verified.
+TABLE_MAX_AGE_DAYS = 90
+TABLE_VERIFIED = re.compile(r"Last verified (?P<date>\d{4}-\d{2}-\d{2})")
+
+HTTP_TIMEOUT_SECONDS = 20
+GITHUB_TIMEOUT_SECONDS = 30
+MAX_REDIRECTS = 5
+USER_AGENT = "awesome-list-audit"
+HTTP_OK = 200
+HTTP_MULTIPLE_CHOICES = 300
+HTTP_BAD_REQUEST = 400
+HTTP_NOT_FOUND = 404
+HTTP_GONE = 410
+PERMANENT_REDIRECTS = {301, 308}
+TEMPORARY_REDIRECTS = {302, 303, 307}
+# Some sites answer HEAD with an error (403, 404, 405, 501, ...) but serve GET;
+# any 4xx/5xx from HEAD is retried with GET before the link is judged.
+DEAD = {HTTP_NOT_FOUND, HTTP_GONE}
+NETWORK_ERROR = None  # status returned by fetch when no HTTP response arrived
+
+SEVERITY_ORDER = ["remove", "fix", "check", "watch", "manual"]
+# Severities that need someone to act; "manual" is informational only.
+ACTIONABLE = {"remove", "fix", "check", "watch"}
+STATUS_ACTIONABLE = "actionable"
+STATUS_CLEAN = "clean"
+
 ENTRY = re.compile(r"^- \[(?P<name>[^\]]+)\]\((?P<url>https?://[^)]+)\)")
 REPO = re.compile(r"^https://github\.com/(?P<owner>[^/]+)/(?P<repo>[^/#?]+)")
+LINK = re.compile(r"\]\((?P<url>https?://[^)]+)\)")
 # Repositories with no repo-level license whose listed entry is a folder that
 # carries its own LICENSE file. Reported as "manual" so the weekly issue does
 # not stay open; re-read the folder's license at each hands-on pass.
@@ -28,16 +63,103 @@ PER_FOLDER_LICENSE = {
 }
 
 
+def repo_of(url):
+    r = REPO.match(url)
+    return (r["owner"], r["repo"]) if r else None
+
+
 def parse(text):
     """Return [(name, url, (owner, repo) or None)] for each list entry."""
+    return [(name, url, repo) for name, url, repo, _ in parse_entries(text)]
+
+
+def parse_entries(text):
+    """Return [(name, url, repo, extra_repos)] for each list entry.
+
+    extra_repos lists the GitHub repositories linked later in the line of a
+    non-GitHub entry (for example MLflow Tracing's docs link plus mlflow/mlflow).
+    """
     out = []
     for line in text.splitlines():
         m = ENTRY.match(line)
         if not m:
             continue
-        r = REPO.match(m["url"])
-        out.append((m["name"], m["url"], (r["owner"], r["repo"]) if r else None))
+        repo = repo_of(m["url"])
+        extra = []
+        if repo is None:
+            for link in LINK.finditer(line[m.end():]):
+                r = repo_of(link["url"])
+                if r and r not in extra:
+                    extra.append(r)
+        out.append((m["name"], m["url"], repo, extra))
     return out
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        return None
+
+
+_OPENER = urllib.request.build_opener(_NoRedirect)
+
+
+def http_fetch(url, method):
+    """Return (status, Location header) for one request, without following redirects."""
+    req = urllib.request.Request(url, method=method, headers={"User-Agent": USER_AGENT})
+    try:
+        with _OPENER.open(req, timeout=HTTP_TIMEOUT_SECONDS) as resp:
+            return resp.status, resp.headers.get("Location")
+    except urllib.error.HTTPError as e:
+        return e.code, e.headers.get("Location")
+    except (urllib.error.URLError, OSError):
+        return NETWORK_ERROR, None
+
+
+def check_url(url, fetch=http_fetch):
+    """Return a list of (severity, message) findings for one non-GitHub link.
+
+    fetch(url, method) -> (status or None, location) does one request without
+    following redirects; tests pass a fake so no network is used.
+    """
+    # permanent_target is the target of the last permanent hop: in a chain like
+    # 301 -> 302 -> 200 the link should move to the 301's target, not to the
+    # temporary final URL.
+    current, permanent_target = url, None
+    for _ in range(MAX_REDIRECTS + 1):
+        status, location = fetch(current, "HEAD")
+        if status is not NETWORK_ERROR and status >= HTTP_BAD_REQUEST:
+            status, location = fetch(current, "GET")
+        if status is NETWORK_ERROR:
+            return [("check", f"{current} did not respond")]
+        if status in PERMANENT_REDIRECTS | TEMPORARY_REDIRECTS and location:
+            current = urllib.parse.urljoin(current, location)
+            if status in PERMANENT_REDIRECTS:
+                permanent_target = current
+            continue
+        if HTTP_OK <= status < HTTP_MULTIPLE_CHOICES:
+            if permanent_target and permanent_target != url:
+                return [("fix", f"permanently redirects to {permanent_target}; update the link")]
+            return []
+        if status in DEAD:
+            return [("remove", f"{current} returns {status}")]
+        return [("check", f"{current} returns {status}")]
+    return [("check", f"{url} redirects more than {MAX_REDIRECTS} times")]
+
+
+def table_age(text, now):
+    """Return findings when the comparison table's verification date is too old."""
+    m = TABLE_VERIFIED.search(text)
+    if not m:
+        return []
+    verified = dt.datetime.strptime(m["date"], "%Y-%m-%d").replace(tzinfo=dt.timezone.utc)
+    age = (now - verified).days
+    if age > TABLE_MAX_AGE_DAYS:
+        return [("check", f"comparison table last verified {age} days ago ({m['date']}); re-verify and update the date")]
+    return []
+
+
+def is_actionable(report):
+    return any(sev in ACTIONABLE for sev, _, _ in report)
 
 
 def gh_get(path):
@@ -46,14 +168,18 @@ def gh_get(path):
         headers={
             "Accept": "application/vnd.github+json",
             "Authorization": "Bearer " + os.environ.get("GITHUB_TOKEN", ""),
-            "User-Agent": "awesome-list-audit",
+            "User-Agent": USER_AGENT,
         },
     )
     try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with urllib.request.urlopen(req, timeout=GITHUB_TIMEOUT_SECONDS) as resp:
             return resp.status, json.load(resp)
     except urllib.error.HTTPError as e:
         return e.code, None
+    except (urllib.error.URLError, OSError):
+        # Timeouts and connection errors become a "check" finding instead of
+        # crashing the run (TimeoutError is an OSError).
+        return None, None
 
 
 def judge(name, owner, repo, meta, last_commit, now):
@@ -85,42 +211,70 @@ def judge(name, owner, repo, meta, last_commit, now):
 
 def last_commit_date(owner, repo):
     status, data = gh_get(f"/repos/{owner}/{repo}/commits?per_page=1")
-    if status != 200 or not data:
+    if status != HTTP_OK or not data:
         return None
     return dt.datetime.fromisoformat(data[0]["commit"]["committer"]["date"].replace("Z", "+00:00"))
 
 
-def main(path="README.md"):
-    now = dt.datetime.now(dt.timezone.utc)
-    report, api_failures = [], 0
-    entries = parse(open(path).read())
-    for name, url, repo in entries:
+def check_repo(name, owner, repo, now):
+    """Return (findings, api_failed) for one GitHub repository."""
+    status, meta = gh_get(f"/repos/{owner}/{repo}")
+    if status == HTTP_NOT_FOUND:
+        return [("remove", f"https://github.com/{owner}/{repo} returns 404")], False
+    if status != HTTP_OK:
+        return [("check", f"GitHub API returned {status} for {owner}/{repo}")], True
+    return judge(name, owner, repo, meta, last_commit_date(owner, repo), now), False
+
+
+def audit(text, now, repo_check=None, url_check=None):
+    """Return (entries, report, api_failures, repos_checked)."""
+    repo_check = repo_check or check_repo
+    url_check = url_check or check_url
+    report, api_failures, repos_checked = [], 0, 0
+    entries = parse_entries(text)
+    for name, url, repo, extra in entries:
         if repo is None:
-            report.append(("manual", name, "not a GitHub repo; check the link and claims by hand"))
-            continue
-        owner, rname = repo
-        status, meta = gh_get(f"/repos/{owner}/{rname}")
-        if status == 404:
-            report.append(("remove", name, f"{url} returns 404"))
-            continue
-        if status != 200:
-            api_failures += 1
-            report.append(("check", name, f"GitHub API returned {status}"))
-            continue
-        for sev, msg in judge(name, owner, rname, meta, last_commit_date(owner, rname), now):
-            report.append((sev, name, msg))
-    order = ["remove", "fix", "check", "watch", "manual"]
-    print(f"# Entry audit, {now:%Y-%m-%d}\n")
-    print(f"{len(entries)} entries checked, {len(report)} findings.\n")
-    for sev in order:
+            report.extend((sev, name, msg) for sev, msg in url_check(url))
+        for owner, rname in [repo] if repo else extra:
+            repos_checked += 1
+            found, failed = repo_check(name, owner, rname, now)
+            api_failures += failed
+            report.extend((sev, name, msg) for sev, msg in found)
+    report.extend((sev, "Comparison table", msg) for sev, msg in table_age(text, now))
+    return entries, report, api_failures, repos_checked
+
+
+def render(entries, report, now):
+    lines = [f"# Entry audit, {now:%Y-%m-%d}", "", f"{len(entries)} entries checked, {len(report)} findings.", ""]
+    for sev in SEVERITY_ORDER:
         rows = [r for r in report if r[0] == sev]
         if rows:
-            print(f"## {sev}\n")
-            for _, name, msg in rows:
-                print(f"- **{name}**: {msg}")
-            print()
-    return 1 if api_failures == len(entries) else 0
+            lines += [f"## {sev}", ""] + [f"- **{name}**: {msg}" for _, name, msg in rows] + [""]
+    return "\n".join(lines)
+
+
+def main(argv):
+    args = list(argv)
+    status_file = None
+    if "--status-file" in args:
+        i = args.index("--status-file")
+        status_file = args[i + 1]
+        del args[i : i + 2]
+    path = args[0] if args else "README.md"
+    if status_file and os.path.exists(status_file):
+        # A stale file must never stand in for this run's result.
+        os.remove(status_file)
+    now = dt.datetime.now(dt.timezone.utc)
+    with open(path) as f:
+        entries, report, api_failures, repos_checked = audit(f.read(), now)
+    print(render(entries, report, now))
+    if status_file:
+        # Written only after the audit finished; a crash leaves no file, and the
+        # workflow treats a missing file as "do not close the issue".
+        with open(status_file, "w") as f:
+            f.write(STATUS_ACTIONABLE if is_actionable(report) else STATUS_CLEAN)
+    return 1 if repos_checked and api_failures == repos_checked else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main(*sys.argv[1:]))
+    sys.exit(main(sys.argv[1:]))
