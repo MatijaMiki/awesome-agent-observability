@@ -47,7 +47,7 @@ Short patterns that use tools already on this list. Each was run on a Linux box 
 
 **Trace any CLI harness through a gateway.** Point Claude Code (through `ANTHROPIC_BASE_URL`), OpenCode, Pi, or another CLI that accepts a custom Anthropic- or OpenAI-compatible base URL at a LiteLLM proxy with the `otel` callback writing into an OpenTelemetry Collector. You get spans with per-request input and output token counts, model, latency, and user agent, without harness-specific instrumentation. Claude Code's own monitoring can send to the same collector, but on local models it may report a phantom cost and only session-level metrics.
 
-**Run MCP Conformance through a proxy.** Point MCP Conformance at the proxy in front of the server, not only at the server itself, so buffering and protocol bugs show up. For a stdio server, mcp-trace `--stdio` gives the suite an HTTP endpoint for request/response scenarios; it forwards POST requests only and does not relay server notifications or server-to-client requests, so logging, progress, sampling, and elicitation scenarios fail through it.
+**Run MCP Conformance through a proxy.** Point MCP Conformance at the proxy or gateway in front of the server, not only at the server itself, so buffering and protocol bugs in the middle layer show up as failures that the direct run does not have.
 
 **Run a harness eval without Docker.** Harbor and Inspect SWE expect container sandboxes. Inspect can also run a task with no sandbox, or with its built-in `local` sandbox (the host file system, no isolation), so a custom solver can shell out to each CLI on the host and score with hidden tests and `model_graded_qa`; the agent then runs with your user's permissions.
 
@@ -178,7 +178,6 @@ Tools that check what an MCP server does: protocol conformance, manual calls, an
 
 - [Model Context Protocol](https://github.com/modelcontextprotocol/modelcontextprotocol) - The specification itself; the source of truth for what a compliant client, server, and transport must do.
 - [MCP Registry](https://github.com/modelcontextprotocol/registry) - Official, community-owned registry service for publishing and discovering MCP servers; still in preview.
-- [mcp-trace](https://github.com/anhermon/mcp-trace) - CLI proxy for MCP servers over SSE or Streamable HTTP that emits an OpenTelemetry span per tool call with duration, status, and propagated trace context, including Streamable HTTP tool calls that return `text/event-stream`.
 - [ToolHive](https://github.com/stacklok/toolhive) - Runs MCP servers in containers with permission policies, secrets handling, and audit logging.
 - [MCPJungle](https://github.com/mcpjungle/MCPJungle) - Self-hosted registry and single gateway endpoint for the MCP servers an organisation runs.
 - [MCP Context Forge](https://github.com/IBM/mcp-context-forge) - Gateway and registry that federates MCP servers and REST APIs behind one endpoint, with auth, plugins, and OpenTelemetry tracing of tool calls; Apache-2.0.

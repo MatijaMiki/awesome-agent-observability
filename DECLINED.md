@@ -30,6 +30,7 @@ Projects that were proposed and not added, or listed and later removed, with the
 | SandBase Harness | 2026-10-04 | [#21](https://github.com/anhermon/awesome-agent-observability/pull/21) | Too young to judge, and the description did not match the project (thresholds 4 and 10). |
 | Helicone | 2026-10-15 | [#29](https://github.com/anhermon/awesome-agent-observability/pull/29) | Maintenance mode only since the March 2026 Mintlify acquisition (threshold 3). |
 | sealref | 2026-10-17 | [6f1264c](https://github.com/anhermon/awesome-agent-observability/commit/6f1264ce5a0c826a3c4c939260ffc1e6d4fc4fad) | Under 8 weeks old (threshold 4); the maintainer's own project, eligible to resubmit after 2026-11-26. |
+| mcp-trace | 2026-11-16 | [archive notice](https://github.com/anhermon/mcp-trace#readme) | Archived by its maintainer (the list's maintainer) on 2026-11-15, with a notice that maintained gateways and the official MCP SDKs now cover one span per MCP tool call (thresholds 1 and 3). |
 
 ## Closed pull requests whose project is listed
 

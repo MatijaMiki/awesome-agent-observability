@@ -68,7 +68,7 @@ date, archive banner, redirect target).
 
 ## Self-promotion
 
-Allowed and stated up front — the maintainer's own `mcp-trace` is on the list.
+Allowed and stated up front. The maintainer's own projects are held to the same bar; `mcp-trace` was listed until it was archived (see [DECLINED.md](DECLINED.md)).
 Submit your own project if it meets the bar above, and write the description
 the same way you would for someone else's.
 
