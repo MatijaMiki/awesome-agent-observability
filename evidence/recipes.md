@@ -1,5 +1,7 @@
 # Recipes added in this follow-up
 
+> Note (2026-11-16): mcp-trace has since been retired and archived by the maintainer and is no longer on the list; this record is kept as the run log of that date.
+
 The patterns themselves were exercised during the 2026-11-15 proof run (`/workspace/aao-proof-2026-11-15/PROOF.md`) unless noted. This file only records what was re-checked or newly confirmed for the list wording.
 
 ## Trace any CLI harness through a gateway
